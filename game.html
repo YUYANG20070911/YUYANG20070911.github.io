@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tower of Hanoi - Learning Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        input[type="number"], input[type="range"], button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input[type="range"] {
+            width: 150px;
+            cursor: pointer;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .stat-item {
+            background: rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        .board-container {
+            perspective: 1000px;
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .board {
+            width: 600px;
+            height: 300px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(15deg);
+        }
+
+        .base {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(to bottom, #8B4513, #654321);
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .peg {
+            position: absolute;
+            bottom: 20px;
+            width: 15px;
+            height: 200px;
+            background: linear-gradient(to right, #8B4513, #D2691E, #8B4513);
+            border-radius: 5px 5px 0 0;
+            transform: translateX(-50%);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .peg:hover {
+            box-shadow: 0 0 20px rgba(255,255,255,0.5);
+        }
+
+        .peg.selected {
+            box-shadow: 0 0 25px rgba(255,255,0,0.8);
+        }
+
+        .peg:nth-child(1) { left: 150px; }
+        .peg:nth-child(2) { left: 300px; }
+        .peg:nth-child(3) { left: 450px; }
+
+        .disk {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            border-radius: 10px;
+            transform: translateX(-50%);
+            cursor: grab;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .disk:hover {
+            transform: translateX(-50%) translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        }
+
+        .disk.dragging {
+            cursor: grabbing;
+            z-index: 1000;
+            opacity: 0.8;
+        }
+
+        .disk.selected {
+            box-shadow: 0 0 20px rgba(255,255,0,0.8);
+        }
+
+        .message {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.3);
+            color: #ff6b6b;
+        }
+
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .win-animation {
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗼 3D Tower of Hanoi</h1>
+    
+    <div class="game-container">
+        <div class="controls">
+            <div class="control-group">
+                <label for="diskCount">Number of Disks: <span id="diskValue">3</span></label>
+                <input type="range" id="diskCount" min="3" max="8" value="3">
+            </div>
+            <div class="control-group">
+                <label>Actions</label>
+                <div style="display: flex; gap: 10px;">
+                    <button id="resetBtn">🔄 Reset</button>
+                    <button id="solveBtn">🤖 Auto Solve</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">Moves: <span id="moveCount">0</span></div>
+            <div class="stat-item">Min Moves: <span id="minMoves">7</span></div>
+        </div>
+
+        <div class="board-container">
+            <div class="board" id="board">
+                <div class="base"></div>
+                <div class="peg" data-peg="0"></div>
+                <div class="peg" data-peg="1"></div>
+                <div class="peg" data-peg="2"></div>
+            </div>
+        </div>
+
+        <div id="message" class="message hidden"></div>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            numDisks: 3,
+            pegs: [[], [], []],
+            moveCount: 0,
+            selectedDisk: null,
+            isSolving: false,
+            diskColors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']
+        };
+
+        // DOM Elements
+        const diskCountSlider = document.getElementById('diskCount');
+        const diskValueSpan = document.getElementById('diskValue');
+        const resetBtn = document.getElementById('resetBtn');
+        const solveBtn = document.getElementById('solveBtn');
+        const moveCountSpan = document.getElementById('moveCount');
+        const minMovesSpan = document.getElementById('minMoves');
+        const messageDiv = document.getElementById('message');
+        const board = document.getElementById('board');
+
+        // Initialize Game
+        function initGame() {
+            // Clear existing disks
+            document.querySelectorAll('.disk').forEach(disk => disk.remove());
+            
+            // Reset game state
+            gameState.pegs = [[], [], []];
+            gameState.moveCount = 0;
+            gameState.selectedDisk = null;
+            gameState.isSolving = false;
+            
+            // Update display
+            moveCountSpan.textContent = '0';
+            minMovesSpan.textContent = Math.pow(2, gameState.numDisks) - 1;
+            hideMessage();
+            solveBtn.disabled = false;
+
+            // Create disks on first peg
+            for (let i = gameState.numDisks; i >= 1; i--) {
+                const disk = createDisk(i);
+                gameState.pegs[0].push(i);
+                board.appendChild(disk);
+                positionDisk(0, disk, gameState.pegs[0].length - 1);
+            }
+        }
+
+        // Create a disk element
+        function createDisk(size) {
+            const disk = document.createElement('div');
+            disk.className = 'disk';
+            disk.dataset.size = size;
+            disk.style.width = `${40 + size * 30}px`;
+            disk.style.height = '20px';
+            disk.style.backgroundColor = gameState.diskColors[size - 1];
+            disk.style.transform = 'translateX(-50%)';
+            
+            // Add drag events
+            disk.addEventListener('mousedown', startDrag);
+            disk.addEventListener('click', selectDisk);
+            
+            return disk;
+        }
+
+        // Position a disk on a peg
+        function positionDisk(pegIndex, disk, stackIndex) {
+            const peg = document.querySelector(`.peg[data-peg="${pegIndex}"]`);
+            const pegRect = peg.getBoundingClientRect();
+            const boardRect = board.getBoundingClientRect();
+            
+            disk.style.left = `${pegRect.left - boardRect.left + pegRect.width/2}px`;
+            disk.style.bottom = `${20 + stackIndex * 22}px`;
+            disk.dataset.peg = pegIndex;
+        }
+
+        // Select a disk (click-to-move)
+        function selectDisk(e) {
+            if (gameState.isSolving) return;
+            
+            const disk = e.target;
+            const diskSize = parseInt(disk.dataset.size);
+            const currentPeg = parseInt(disk.dataset.peg);
+            
+            // Check if disk is top of stack
+            if (gameState.pegs[currentPeg][gameState.pegs[currentPeg].length - 1] !== diskSize) {
+                showMessage('You can only move the top disk!', 'error');
+                return;
+            }
+
+            // Deselect previous selection
+            document.querySelectorAll('.disk.selected').forEach(d => d.classList.remove('selected'));
+            document.querySelectorAll('.peg.selected').forEach(p => p.classList.remove('selected'));
+
+            // Select this disk
+            disk.classList.add('selected');
+            gameState.selectedDisk = { element: disk, size: diskSize, peg: currentPeg };
+            
+            // Highlight valid pegs
+            gameState.pegs.forEach((pegDisks, index) => {
+                if (index !== currentPeg) {
+                    const topDisk = pegDisks[pegDisks.length - 1];
+                    if (!topDisk || topDisk > diskSize) {
+                        document.querySelector(`.peg[data-peg="${index}"]`).classList.add('selected');
+                    }
+                }
+            });
+        }
+
+        // Move selected disk to target peg
+        function moveDiskTo(targetPegIndex) {
+            if (!gameState.selectedDisk || gameState.isSolving) return;
+            
+            const { element, size, peg: currentPeg } = gameState.selectedDisk;
+            
+            // Check if move is valid
+            const targetPegDisks = gameState.pegs[targetPegIndex];
+            const topTargetDisk = targetPegDisks[targetPegDisks.length - 1];
+            
+            if (topTargetDisk && topTargetDisk < size) {
+                showMessage('Invalid move! Cannot place larger disk on smaller one.', 'error');
+                return false;
+            }
+
+            // Perform move
+            gameState.pegs[currentPeg].pop();
+            targetPegDisks.push(size);
+            gameState.moveCount++;
+            moveCountSpan.textContent = gameState.moveCount;
+
+            // Update disk position
+            positionDisk(targetPegIndex, element, targetPegDisks.length - 1);
+
+            // Clear selection
+            element.classList.remove('selected');
+            document.querySelectorAll('.peg.selected').forEach(p => p.classList.remove('selected'));
+            gameState.selectedDisk = null;
+
+            // Check win condition
+            if (gameState.pegs[2].length === gameState.numDisks) {
+                showMessage(`🎉 You Won! Completed in ${gameState.moveCount} moves!`, 'success');
+                document.querySelector('.board').classList.add('win-animation');
+            }
+
+            return true;
+        }
+
+        // Drag and Drop functionality
+        let draggedDisk = null;
+        let dragOffsetX, dragOffsetY;
+
+        function startDrag(e) {
+            if (gameState.isSolving) return;
+            
+            draggedDisk = e.target;
+            draggedDisk.classList.add('dragging');
+            
+            const rect = draggedDisk.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+        }
+
+        function drag(e) {
+            if (!draggedDisk) return;
+            
+            draggedDisk.style.position = 'fixed';
+            draggedDisk.style.left = `${e.clientX - dragOffsetX}px`;
+            draggedDisk.style.top = `${e.clientY - dragOffsetY}px`;
+            draggedDisk.style.zIndex = '1000';
+        }
+
+        function endDrag(e) {
+            if (!draggedDisk) return;
+            
+            draggedDisk.classList.remove('dragging');
+            
+            // Find closest peg
+            const pegs = document.querySelectorAll('.peg');
+            let closestPeg = null;
+            let minDistance = Infinity;
+            
+            pegs.forEach((peg, index) => {
+                const rect = peg.getBoundingClientRect();
+                const distance = Math.abs(e.clientX - (rect.left + rect.width/2));
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPeg = index;
+                }
+            });
+
+            // Reset disk position
+            const currentPeg = parseInt(draggedDisk.dataset.peg);
+            const stackIndex = gameState.pegs[currentPeg].indexOf(parseInt(draggedDisk.dataset.size));
+            positionDisk(currentPeg, draggedDisk, stackIndex);
+            draggedDisk.style.position = 'absolute';
+            draggedDisk.style.zIndex = 'auto';
+            draggedDisk = null;
+
+            // Move to closest peg if valid
+            if (closestPeg !== null && closestPeg !== currentPeg) {
+                // Simulate click selection and move
+                selectDisk({ target: draggedDisk });
+                if (gameState.selectedDisk) {
+                    moveDiskTo(closestPeg);
+                }
+            }
+
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', endDrag);
+        }
+
+        // Peg click handler (for click-to-move)
+        document.querySelectorAll('.peg').forEach(peg => {
+            peg.addEventListener('click', (e) => {
+                if (gameState.isSolving) return;
+                
+                const targetPeg = parseInt(e.currentTarget.dataset.peg);
+                if (gameState.selectedDisk) {
+                    moveDiskTo(targetPeg);
+                }
+            });
+        });
+
+        // Show message
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.classList.remove('hidden');
+            
+            if (type === 'error') {
+                setTimeout(hideMessage, 2000);
+            }
+        }
+
+        function hideMessage() {
+            messageDiv.classList.add('hidden');
+            messageDiv.className = 'message hidden';
+        }
+
+        // Auto Solve (Recursive solution with visualization)
+        async function autoSolve() {
+            if (gameState.isSolving) return;
+            
+            gameState.isSolving = true;
+            solveBtn.disabled = true;
+            resetBtn.disabled = true;
+            diskCountSlider.disabled = true;
+            
+            await solveHanoi(gameState.numDisks, 0, 2, 1);
+            
+            gameState.isSolving = false;
+            solveBtn.disabled = false;
+            resetBtn.disabled = false;
+            diskCountSlider.disabled = false;
+        }
+
+        async function solveHanoi(n, from, to, aux) {
+            if (n === 0) return;
+            
+            await solveHanoi(n - 1, from, aux, to);
+            await moveDisk(from, to);
+            await solveHanoi(n - 1, aux, to, from);
+        }
+
+        function moveDisk(fromPeg, toPeg) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const diskSize = gameState.pegs[fromPeg][gameState.pegs[fromPeg].length - 1];
+                    const diskElement = document.querySelector(`.disk[data-size="${diskSize}"][data-peg="${fromPeg}"]`);
+                    
+                    gameState.pegs[fromPeg].pop();
+                    gameState.pegs[toPeg].push(diskSize);
+                    gameState.moveCount++;
+                    moveCountSpan.textContent = gameState.moveCount;
+                    
+                    positionDisk(toPeg, diskElement, gameState.pegs[toPeg].length - 1);
+                    
+                    resolve();
+                }, 500);
+            });
+        }
+
+        // Event Listeners
+        diskCountSlider.addEventListener('input', (e) => {
+            gameState.numDisks = parseInt(e.target.value);
+            diskValueSpan.textContent = gameState.numDisks;
+            initGame();
+        });
+
+        resetBtn.addEventListener('click', initGame);
+        solveBtn.addEventListener('click', autoSolve);
+
+        // Initialize on load
+        initGame();
+    </script>
+</body>
+</html>
